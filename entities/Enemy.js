@@ -48,9 +48,16 @@ export default class Enemy {
 
     chooseState(dist) {
         // Attacco se vicino
-        if (dist < this.attackRange) {
+        const AfterAttack=0;
+        if (dist < this.attackRange) { //All infinito
             this.state = "attack";
             this.color = "red";
+            //Animaione
+            if (this.color=="red"){
+                //import vita
+                //se collisione=vita--
+            }
+            //Dopo anim = Cooldownattacconuovo
             return;
         }
 
