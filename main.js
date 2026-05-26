@@ -43,6 +43,17 @@ idle: {
     frames: 8, 
     fps: 13
 },
+dash: {
+    img: spritePlayer,
+    frameW: 22,
+    frameH: 34,
+    startX: 108,
+    startY: 687,
+    spacing: 221,
+    frames: 4,
+    fps: 20
+},
+
     //jump:  { img: spritePlayer, frameW: 18, frameH: 39, startX: 111 , startY: frames: 1, fps: 8 },
 
 
@@ -98,6 +109,19 @@ const ground = 200;
 const enemy = new Enemy(100, 200);
 
 const totalFrames= 13;
+
+let isDashing = false;
+let dashCooldown = false;
+let dashTimer = 0;
+let dashFrame = 0;
+let dashFrameTimer = 0;
+
+const dashFrameWidth = 22;
+const dashFrameHeight = 34;
+const dashStartX = 108;  // primo frame
+const dashStartY = 687;
+const dashFrameDistance = 221;
+const dashTotalFrames = 4
 
 function loop(timestamp) {
     const dt = timestamp - lastTime;
@@ -160,7 +184,48 @@ var playercolor = "#4caf50";
 let facingLeft= false;
 var teleport = 1; //2 frame (andata, ritorno, stesso frame, funge da timer in questo caso)
 
+function startDash(direction) {
+    isDashing = true;
+    dashCooldown = true;
+    dashTimer = 180; // durata dash in ms
+    dashFrame = 0;
+    dashFrameTimer = 0;
+
+    player.dashDir = direction;
+}
+
+function updateDash(dt) {
+    if (!isDashing) return;
+
+    // Movimento rapido
+    const DASH_SPEED = 0.6; // smooth, fast, but not teleport
+    player.x += player.dashDir * DASH_SPEED * dt;
+
+
+    // Timer dash
+    dashTimer -= dt;
+    if (dashTimer <= 0) {
+        isDashing = false;
+
+        // Cooldown di 300ms
+        setTimeout(() => {
+            dashCooldown = false;
+        }, 300);
+    }
+
+    // Animazione dash
+    dashFrameTimer += dt;
+if (dashFrameTimer > 30) { // faster animation
+    dashFrame = (dashFrame + 1) % dashTotalFrames;
+    dashFrameTimer = 0;
+}
+
+}
+
+
+
 function update(dt) {
+    updateDash(dt);
     // SALTO
     if (input.isDown("KeyW") && grounded) {
         velY = jumpForce;
@@ -185,7 +250,15 @@ function update(dt) {
         moving = true;
         facingLeft = false;
     }
-
+    //Dash sinistra
+    if (!dashCooldown && !isDashing) {
+    if (input.isDown("KeyQ") && input.isDown("KeyA")) {
+        startDash(-1); // dash a sinistra
+    }
+    if (input.isDown("KeyQ") && input.isDown("KeyD")) {
+        startDash(1); // dash a destra
+    }
+}
 
     // ANIMAZIONI (semplice: idle / walk / jump / fall)
     if (!grounded) {
@@ -219,13 +292,48 @@ function render() {
 }
 
 function AnimPlayer() {
+    ctx.save();
+
+    const SCALE = 2; // <--- cambia questo per ingrandire/ridurre
+
+    // DASH HA PRIORITÀ ASSOLUTA
+    if (isDashing) {
+        const sx = dashStartX + dashFrame * dashFrameDistance;
+        const sy = dashStartY;
+
+        if (facingLeft) {
+            ctx.scale(-1, 1);
+            ctx.drawImage(
+                spritePlayer,
+                sx, sy,
+                dashFrameWidth, dashFrameHeight,
+                -(player.x + dashFrameWidth * SCALE),
+                player.y - 8,
+                dashFrameWidth * SCALE,
+                dashFrameHeight * SCALE
+            );
+        } else {
+            ctx.drawImage(
+                spritePlayer,
+                sx, sy,
+                dashFrameWidth, dashFrameHeight,
+                player.x,
+                player.y - 8,
+                dashFrameWidth * SCALE,
+                dashFrameHeight * SCALE
+            );
+        }
+
+        ctx.restore();
+        return;
+    }
+
+    // NORMAL ANIMATIONS
     const cfg = animConfig[currentAnim];
     if (!cfg) return;
 
     const sx = cfg.startX + animFrame * cfg.spacing;
     const sy = cfg.startY;
-
-    ctx.save();
 
     if (facingLeft) {
         ctx.scale(-1, 1);
@@ -233,9 +341,10 @@ function AnimPlayer() {
             cfg.img,
             sx, sy,
             cfg.frameW, cfg.frameH,
-            -(player.x + cfg.frameW),   // flip trick
+            -(player.x + cfg.frameW * SCALE),
             player.y - 8,
-            cfg.frameW, cfg.frameH
+            cfg.frameW * SCALE,
+            cfg.frameH * SCALE
         );
     } else {
         ctx.drawImage(
@@ -244,12 +353,14 @@ function AnimPlayer() {
             cfg.frameW, cfg.frameH,
             player.x,
             player.y - 8,
-            cfg.frameW, cfg.frameH
+            cfg.frameW * SCALE,
+            cfg.frameH * SCALE
         );
     }
 
     ctx.restore();
 }
+
 
 
 
