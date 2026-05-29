@@ -48,17 +48,27 @@ dash: {
     frameW: 22,
     frameH: 34,
     startX: 108,
-    startY: 687,
+    startY: 686,
     spacing: 221,
     frames: 4,
     fps: 20
 },
-
+attack:
+{ 
+    img: spritePlayer, 
+    frameW: 103,
+    frameH: 38, 
+    startX: 100,
+    startY: 1199,
+    spacing: 139,
+    frames: 3, 
+    fps: 1
+},
     //jump:  { img: spritePlayer, frameW: 18, frameH: 39, startX: 111 , startY: frames: 1, fps: 8 },
 
 
     fall:  { img: spritePlayer, frameW: 18, frameH: 39, startX: 111, frames: 1, fps: 8 },
-    attack:{ img: spritePlayer, frameW: 18, frameH: 39, startX: 111, frames: 1, fps: 12 },
+    //attack:{ img: spritePlayer, frameW: 18, frameH: 39, startX: 111, frames: 1, fps: 12 },
 };
 
 
@@ -71,15 +81,29 @@ function setAnim(name) {
 
 function stepAnim(dt) {
     const cfg = animConfig[currentAnim];
-    // if frames is 1, no need to advance
     if (!cfg || cfg.frames <= 1) return;
+
     animTime += dt;
     const frameDuration = 1000 / cfg.fps;
+
     while (animTime >= frameDuration) {
         animTime -= frameDuration;
-        animFrame = (animFrame + 1) % cfg.frames;
+        animFrame++;
+
+        if (currentAnim === "attack") {
+            if (animFrame >= cfg.frames) {
+                // fine attacco
+                animFrame = 0;
+                isAttacking = false;
+                setAnim("idle");
+                break;
+            }
+        } else {
+            animFrame = animFrame % cfg.frames;
+        }
     }
 }
+
 
 const ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
@@ -182,12 +206,12 @@ function EnemyCollisions() {
 // -------------------------
 var playercolor = "#4caf50";
 let facingLeft= false;
-var teleport = 1; //2 frame (andata, ritorno, stesso frame, funge da timer in questo caso)
+
 
 function startDash(direction) {
     isDashing = true;
     dashCooldown = true;
-    dashTimer = 180; // durata dash in ms
+    dashTimer = 280; // durata dash in ms
     dashFrame = 0;
     dashFrameTimer = 0;
 
@@ -221,7 +245,37 @@ if (dashFrameTimer > 30) { // faster animation
 }
 
 }
+let isAttacking = false;
+let AttackingTimer = 0;
+let AttackFrame = 0;
+let AttackFrameTimer = 0;
+let AttackTotalFrames = 0;
+function startAttack(direction){
+isAttacking = true;
+AttackingTimer = 280;
+AttackFrame = 0;
+AttackFrameTimer = 94;
+AttackTotalFrames = 3;
+player.AttackDir = direction;
+}
 
+function updateAttack(dt){
+    if (!isAttacking) return;
+    
+    const ATTACK_SPEED = 0.88; //Anim speed
+    
+    //Timer attacco
+    AttackingTimer -= dt;
+    if (AttackingTimer){
+        isAttacking = false;
+    }
+    //Frame
+    AttackFrameTimer += dt;
+    if (AttackFrameTimer > 30){
+        AttackFrame = (AttackFrame + 1) % AttackTotalFrames; 
+        AttackFrameTimer = 0;
+    }
+}
 
 
 function update(dt) {
@@ -239,6 +293,7 @@ function update(dt) {
 
     // MOVIMENTO
     let moving = false;
+    let attack = false;
     if (input.isDown("KeyA")) {
         player.x -= player.speed * dt;
         moving = true;
@@ -250,7 +305,15 @@ function update(dt) {
         moving = true;
         facingLeft = false;
     }
-    //Dash sinistra
+
+    if (input.isDown("KeyF") && !isAttacking && grounded && !isDashing) {
+        isAttacking = true;
+        console.log("attaccato");
+        startAttack(1);
+        setAnim("attack");
+    }
+    
+    //Dash
     if (!dashCooldown && !isDashing) {
     if (input.isDown("KeyQ") && input.isDown("KeyA")) {
         startDash(-1); // dash a sinistra
@@ -258,6 +321,7 @@ function update(dt) {
     if (input.isDown("KeyQ") && input.isDown("KeyD")) {
         startDash(1); // dash a destra
     }
+
 }
 
     // ANIMAZIONI (semplice: idle / walk / jump / fall)
@@ -266,6 +330,7 @@ function update(dt) {
         else setAnim("fall");
     } else {
         if (moving) setAnim("walk");
+        else if (!moving && attack) setAnim("attack");
         else setAnim("idle");
     }
 
@@ -327,6 +392,7 @@ function AnimPlayer() {
         ctx.restore();
         return;
     }
+
 
     // NORMAL ANIMATIONS
     const cfg = animConfig[currentAnim];
