@@ -59,10 +59,10 @@ attack:
     frameW: 103,
     frameH: 38, 
     startX: 100,
-    startY: 1199,
-    spacing: 139,
+    startY: 1197,
+    spacing: 239,
     frames: 3, 
-    fps: 1
+    fps: 15
 },
     //jump:  { img: spritePlayer, frameW: 18, frameH: 39, startX: 111 , startY: frames: 1, fps: 8 },
 
@@ -143,7 +143,7 @@ let dashFrameTimer = 0;
 const dashFrameWidth = 22;
 const dashFrameHeight = 34;
 const dashStartX = 108;  // primo frame
-const dashStartY = 687;
+const dashStartY = 686;
 const dashFrameDistance = 221;
 const dashTotalFrames = 4
 
@@ -251,12 +251,12 @@ let AttackFrame = 0;
 let AttackFrameTimer = 0;
 let AttackTotalFrames = 0;
 function startAttack(direction){
-isAttacking = true;
-AttackingTimer = 280;
-AttackFrame = 0;
-AttackFrameTimer = 94;
-AttackTotalFrames = 3;
-player.AttackDir = direction;
+    isAttacking = true;
+    AttackingTimer = 280;
+    AttackFrame = 0;
+    AttackFrameTimer = 0;
+    AttackTotalFrames = 3;
+    player.AttackDir = direction;
 }
 
 function updateAttack(dt){
@@ -266,20 +266,30 @@ function updateAttack(dt){
     
     //Timer attacco
     AttackingTimer -= dt;
-    if (AttackingTimer){
-        isAttacking = false;
-    }
+    if (AttackingTimer <= 0) {
+    isAttacking = false;
+    setAnim("idle");
+    return;
+}
+
     //Frame
     AttackFrameTimer += dt;
-    if (AttackFrameTimer > 30){
-        AttackFrame = (AttackFrame + 1) % AttackTotalFrames; 
-        AttackFrameTimer = 0;
+    const frameDuration = 1000 / animConfig.attack.fps;
+
+    if (AttackFrameTimer >= frameDuration) {
+        AttackFrameTimer -= frameDuration;
+        AttackFrame++;
+
+        if (AttackFrame >= AttackTotalFrames) {
+            AttackFrame = AttackTotalFrames - 1; // hold last frame
+        }
     }
 }
 
 
 function update(dt) {
     updateDash(dt);
+    updateAttack(dt);
     // SALTO
     if (input.isDown("KeyW") && grounded) {
         velY = jumpForce;
@@ -305,13 +315,10 @@ function update(dt) {
         moving = true;
         facingLeft = false;
     }
-
-    if (input.isDown("KeyF") && !isAttacking && grounded && !isDashing) {
-        isAttacking = true;
-        console.log("attaccato");
-        startAttack(1);
-        setAnim("attack");
-    }
+if (input.isDown("KeyF") && !isAttacking && grounded && !isDashing) {
+    startAttack(facingLeft ? -1 : 1);
+    setAnim("attack");
+}
     
     //Dash
     if (!dashCooldown && !isDashing) {
@@ -362,37 +369,70 @@ function AnimPlayer() {
     const SCALE = 2; // <--- cambia questo per ingrandire/ridurre
 
     // DASH HA PRIORITÀ ASSOLUTA
-    if (isDashing) {
-        const sx = dashStartX + dashFrame * dashFrameDistance;
-        const sy = dashStartY;
+if (isDashing) {
+    const cfg = animConfig.dash;
+    const sx = cfg.startX + dashFrame * cfg.spacing;
+    const sy = cfg.startY;
 
-        if (facingLeft) {
-            ctx.scale(-1, 1);
-            ctx.drawImage(
-                spritePlayer,
-                sx, sy,
-                dashFrameWidth, dashFrameHeight,
-                -(player.x + dashFrameWidth * SCALE),
-                player.y - 8,
-                dashFrameWidth * SCALE,
-                dashFrameHeight * SCALE
-            );
-        } else {
-            ctx.drawImage(
-                spritePlayer,
-                sx, sy,
-                dashFrameWidth, dashFrameHeight,
-                player.x,
-                player.y - 8,
-                dashFrameWidth * SCALE,
-                dashFrameHeight * SCALE
-            );
-        }
-
-        ctx.restore();
-        return;
+    if (facingLeft) {
+        ctx.scale(-1, 1);
+        ctx.drawImage(
+            cfg.img,
+            sx, sy,
+            cfg.frameW, cfg.frameH,
+            -(player.x + cfg.frameW * SCALE),
+            player.y - (cfg.frameH * SCALE) / 2,
+            cfg.frameW * SCALE,
+            cfg.frameH * SCALE
+        );
+    } else {
+        ctx.drawImage(
+            cfg.img,
+            sx, sy,
+            cfg.frameW, cfg.frameH,
+            player.x,
+            player.y - 8,
+            cfg.frameW * SCALE,
+            cfg.frameH * SCALE
+        );
     }
 
+    ctx.restore();
+    return;
+}
+
+    // ATTACK PRIORITY (after dash)
+if (isAttacking) {
+    const cfg = animConfig.attack;
+    const sx = cfg.startX + AttackFrame * cfg.spacing;
+    const sy = cfg.startY;
+
+    if (facingLeft) {
+        ctx.scale(-1, 1);
+        ctx.drawImage(
+            cfg.img,
+            sx, sy,
+            cfg.frameW, cfg.frameH,
+            -(player.x + cfg.frameW * SCALE),
+            player.y - 8,
+            cfg.frameW * SCALE,
+            cfg.frameH * SCALE
+        );
+    } else {
+        ctx.drawImage(
+            cfg.img,
+            sx, sy,
+            cfg.frameW, cfg.frameH,
+            player.x,
+            player.y - 8,
+            cfg.frameW * SCALE,
+            cfg.frameH * SCALE
+        );
+    }
+
+    ctx.restore();
+    return;
+}
 
     // NORMAL ANIMATIONS
     const cfg = animConfig[currentAnim];
@@ -437,5 +477,5 @@ function AnimPlayer() {
 requestAnimationFrame(loop);
 
 
-
+//178.32.125.55:25609
 
